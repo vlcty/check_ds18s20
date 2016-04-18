@@ -1,0 +1,86 @@
+#!/usr/bin/perl
+#
+# check_ds18s20 - Monitor DS18S20 temperature sensors
+# Copyright (C) 2016 Josef 'veloc1ty' Stautner <hello@veloc1ty.de>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+use strict;
+use Getopt::Long;
+
+our $ARG_DEVICE = '';
+our $W1_DIR = '/sys/bus/w1/devices';
+
+sub exitWarning {
+    printf("WARNING - %s\n", shift);
+    exit(1);
+}
+
+sub exitCritical {
+    printf("CRITICAL - %s\n", shift);
+    exit(2);
+}
+
+sub exitUnknow {
+    printf("CRITICAL - %s\n", shift);
+    exit(3);
+}
+
+sub assembleDevicePath {
+    return sprintf('%s/%s/w1_slave', $W1_DIR, $ARG_DEVICE);
+}
+
+sub checkEnvironment {
+    if ( ! -e assembleDevicePath()) {
+        exitUnknow(sprintf('No DS18S20 found under %s', assembleDevicePath()));
+    }
+}
+
+sub parseArguments {
+    GetOptions (
+        'device=s' => \$ARG_DEVICE
+    );
+
+    if ( length($ARG_DEVICE) == 0 ) {
+        exitUnknow('No device given');
+    }
+
+    if ( $ARG_DEVICE !~ /(10|28)-\w{12}/ ) {
+        exitUnknow('Device doesn\'t match /(10|28)-\w{12}/');
+    }
+}
+
+sub getDeviceOutput {
+    my $command = 'cat ' . assembleDevicePath();
+    my @output = `$command`;
+
+    if ( scalar(@output) != 2 ) {
+        exitCritical('Was not able to read sensor output');
+    }
+
+    if ( $output[1] =~ m/t=(\d+)$/ ) {
+        return $1/1000;
+    }
+}
+
+sub main {
+    parseArguments();
+    checkEnvironment();
+    my $temp = getDeviceOutput();
+
+    printf("OK - Temp: %.3f °C|temp=%.3f\n", $temp, $temp);
+}
+
+main();
