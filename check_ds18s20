@@ -70,7 +70,7 @@ sub getDeviceOutput {
         exitCritical('Was not able to read sensor output');
     }
 
-    if ( $output[1] =~ m/t=(\d+)$/ ) {
+    if ( $output[1] =~ m/t=([-]\d+)$/ ) {
         return $1/1000;
     }
 }
